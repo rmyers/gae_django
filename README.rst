@@ -12,7 +12,11 @@ Who Should Use This?
 Since this involves very little hacking it should be suitable
 for small projects. But if you need to view > 1000 objects you
 should really think twice as the django admin is not designed
-for your large dataset.
+for your large dataset. 
+
+Also if you want a quick way to have oauth support for your app
+and don't care about the admin stuff the auth app works standalone.
+This is based off the work of git://github.com/mikeknapp/AppEngine-OAuth-Library
 
 Current Admin Options Support
 =============================
