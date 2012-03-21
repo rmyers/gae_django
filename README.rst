@@ -47,6 +47,18 @@ use google db.Model/properties.
 
 settings::
 
+    
+    DATABASES = {
+        'default': {
+            'ENGINE': 'gae_django.db.gae', 
+            'NAME': '', 
+            'USER': '',
+            'PASSWORD': '',
+            'HOST': '',
+            'PORT': '',
+        }
+    }
+    
     INSTALLED_APPS = [
         'django.contrib.admin',
         'django.contrib.auth',
@@ -54,7 +66,12 @@ settings::
         'gae_django.admin',
         'gae_django.auth',
     ]
-    AUTHENTICATION_BACKENDS = ['gae_django.auth.backend.GAEBackend', 'gae_django.auth.backend.GAETwitterBackend']
+    
+    AUTHENTICATION_BACKENDS = [
+        'gae_django.auth.backend.GAEBackend', 
+        'gae_django.auth.backend.GAETwitterBackend'
+    ]
+    
     SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
     MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
     SESSION_SAVE_EVERY_REQUEST = True
