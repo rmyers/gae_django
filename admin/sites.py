@@ -2,6 +2,7 @@ from django.contrib.admin import AdminSite
 
 from options import ModelAdmin
 from django.shortcuts import redirect
+from django.conf import settings
 
 class GAEAdminSite(AdminSite):
     
@@ -55,6 +56,6 @@ class GAEAdminSite(AdminSite):
             del self._registry[model]
 
     def login(self, request):
-        return redirect('/auth/twitter/')
+        return redirect(settings.LOGIN_URL)
 
 site = GAEAdminSite()

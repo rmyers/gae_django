@@ -1,6 +1,8 @@
 from django.contrib.auth.backends import ModelBackend
 from django.conf import settings
 
+from models import User
+
 class GAEBackend(ModelBackend):
     
     supports_object_permissions = True
