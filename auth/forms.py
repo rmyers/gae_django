@@ -1,4 +1,6 @@
 
+from gettext import gettext as _
+
 from google.appengine.ext.db import djangoforms
 from django import forms
 from django.contrib.auth import authenticate
