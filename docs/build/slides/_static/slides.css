@@ -5,6 +5,9 @@ img.fill {
   min-width: 100%;
   min-height: 100%;
 
+  max-width: 100%;
+  max-height: 100%;
+
   border-radius: 10px;
   -o-border-radius: 10px;
   -moz-border-radius: 10px;
@@ -21,5 +24,10 @@ div.figure p.caption {
     position: absolute;
     left: 0;
     bottom: 0;
-    font-size: 0.5em;
+    font-size: 16px;
+}
+
+.slides > article.level-2 > h2 {
+    position: static;
+    bottom: auto;
 }
