@@ -253,12 +253,120 @@ A place for Men to collect pictures and links to stuff for men.
 * Comments on 'mans'
 * Follow feature for favorite users
 
+Setup
+-----
+
+app.yaml::
+
+    application: manterest-prod
+    version: 1
+    runtime: python27
+    api_version: 1
+    threadsafe: true
+    
+    handlers:
+    - url: /static
+      static_dir: men/static
+    
+    - url: /.*
+      script: main.app
+    
+    libraries:
+    - name: django
+      version: "1.3"
+    
+Django App
+----------
+
+main.py::
+
+    import os
+
+    os.environ["DJANGO_SETTINGS_MODULE"] = 'men.settings'
+    
+    import django.core.handlers.wsgi
+    
+    app = django.core.handlers.wsgi.WSGIHandler()
+
+Settings
+--------
+
+settings.py::
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'gae_django.db.gae',
+    }}
+    INSTALLED_APPS = (
+        'django.contrib.auth',
+        'django.contrib.contenttypes',
+        'django.contrib.sessions',
+        'django.contrib.messages',
+        'django.contrib.admin',
+        'gae_django.auth',
+        'men',
+        'men.tights',
+    )
+    UTHENTICATION_BACKENDS = ['gae_django.auth.backend.GAEBackend', 'gae_django.auth.backend.GAETwitterBackend']
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+    MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+            'TIMEOUT': 3600*24*2, # Two Weeks
+        }
+    }
+
+Cache
+------
+
+Trick django into using google memcache ``memcahe.py`` in root::
+
+    from google.appengine.api.memcache import *
+
+Man Model
+---------
+
+::
+
+    class Man(db.Model):
+        """Basic man model"""
+        
+        account_id = db.IntegerProperty()
+        account_name = db.StringProperty()
+        title = db.StringProperty()
+        url = db.URLProperty()
+        category = db.StringProperty()
+        image_ref_url = db.URLProperty()
+        image_src = db.URLProperty()
+        created_on = db.DateTimeProperty(auto_now_add=True)
+
 How to scale your internet sensation?
 =====================================
+
+Problem
+-------
+
+You got too many users, and some users have tons of followers.
+
+Solution
+--------
+
+Use datastore list properties and parent keys to get a list of
+mans from all the people you are following.
+
+Query::
+    
+    user_id = request.user.id
+    query = ManIndex.all(keys_only=True).filter('account_ids =', user_id)
+    query.order('-created_on')
+    query.fetch(1000)
 
 Advanced tools
 ==============
 
+* Map Reduce
     
 .. toctree::
    :maxdepth: 2
