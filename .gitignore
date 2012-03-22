@@ -1,3 +1,5 @@
 .project
 .pydevproject
+.settings
+.DS_Store
 *.py[co]
