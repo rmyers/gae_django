@@ -5,7 +5,7 @@ Building Scalable Web Applications with Appengine
 
 by Robert Myers
 
-robert@keyingredient.com
+robert at keyingredient dot com
 
 Topics
 ------
