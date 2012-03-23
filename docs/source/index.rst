@@ -249,7 +249,7 @@ Manterest
 A place for Men to collect pictures and links to stuff for men.
 
 * A model to store pictures/link/title
-* A gallery view of resent 'mans' 
+* A gallery view of rescent 'mans' 
 * Comments on 'mans'
 * Follow feature for favorite users
 
@@ -288,8 +288,8 @@ main.py::
     
     app = django.core.handlers.wsgi.WSGIHandler()
 
-Settings
---------
+Settings (database and installed apps)
+---------------------------------------
 
 settings.py::
 
@@ -298,7 +298,7 @@ settings.py::
             'ENGINE': 'gae_django.db.gae',
     }}
     INSTALLED_APPS = (
-        'django.contrib.auth',
+        'django.contrib.auth', 
         'django.contrib.contenttypes',
         'django.contrib.sessions',
         'django.contrib.messages',
@@ -307,7 +307,16 @@ settings.py::
         'men',
         'men.tights',
     )
-    UTHENTICATION_BACKENDS = ['gae_django.auth.backend.GAEBackend', 'gae_django.auth.backend.GAETwitterBackend']
+
+Settings Continued
+------------------
+
+settings::
+
+    AUTHENTICATION_BACKENDS = [
+       'gae_django.auth.backend.GAEBackend', 
+       'gae_django.auth.backend.GAETwitterBackend'
+    ]
     SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
     MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
@@ -321,7 +330,9 @@ settings.py::
 Cache
 ------
 
-Trick django into using google memcache ``memcahe.py`` in root::
+Trick django into using google memcache. Add a file ``memcahe.py`` 
+in root of your application directory, or somewhere else in the 
+PYTHON_PATH::
 
     from google.appengine.api.memcache import *
 
@@ -341,6 +352,66 @@ Man Model
         image_ref_url = db.URLProperty()
         image_src = db.URLProperty()
         created_on = db.DateTimeProperty(auto_now_add=True)
+
+Forms
+-----
+
+Same Django forms you allready know::
+
+    class ManPostForm(forms.Form):
+        """Actual man creation form."""
+        
+        title = forms.CharField()
+        category = forms.ChoiceField(choices=CATEGORIES)
+        url = forms.CharField()
+        image_src = forms.URLField()
+
+Views (index)
+-------------
+
+Index view, list out the latest 'mans' and pagination results 
+with cursors::
+
+    def index(request):
+        """Show the latest posts."""
+        cursor = request.GET.get('cursor', None)
+        query = Man.all().order("-created_on")
+        
+        if cursor is not None:
+            query.with_cursor(cursor)
+        
+        mans = query.fetch(LIMIT)
+        
+        return render_to_response('index.html', RequestContext(request, {
+            'mans': mans,
+            'cursor': str(query.cursor()),
+            'next': len(pins) == LIMIT,
+        }))
+
+Views (post)
+------------
+
+Create a new Man view::
+
+    @login_required
+    def post_man(request):
+        """Make the actual post from the url and image choosen."""
+        
+        if request.method == "POST":
+            form = ManPostForm(request.POST)
+            if form.is_valid():
+                p = Man(**form.cleaned_data)
+                p.account_id = request.user.id
+                p.account_name = unicode(request.user)
+                p.put()
+                # send the user back to the original page.
+                return http.HttpResponseRedirect(form.cleaned_data['url'])
+        else:
+            form = ManPostForm()
+        
+        return render_to_response('form.html', 
+            RequestContext(request, {'form': form}))
+
 
 How to scale your internet sensation?
 =====================================
@@ -367,6 +438,12 @@ Advanced tools
 ==============
 
 * Map Reduce
+* Blob Store
+* Task Queue 
+* Channel API
+
+Questions
+=========
     
 .. toctree::
    :maxdepth: 2
