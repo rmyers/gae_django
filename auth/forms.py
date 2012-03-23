@@ -1,7 +1,6 @@
 
 from gettext import gettext as _
 
-import djangoforms
 from django import forms
 from django.contrib.auth import authenticate
 
@@ -53,9 +52,3 @@ class AuthenticationForm(forms.Form):
     def get_user(self):
         return self.user_cache
 
-    
-class SignupForm(djangoforms.ModelForm): 
-    class Meta:
-        model = User
-        exclude = ['picture_url', 'service', 'token', 'is_superuser', 
-                   'is_staff', 'is_active', 'date_joined']
