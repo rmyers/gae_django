@@ -3,11 +3,14 @@ Database connection for GAE.
 
 This mainly provides support for transactions.
 """
-from django.db.backends import *
-from django.db.backends.creation import BaseDatabaseCreation
 import logging
 
+from django.db.backends import *
+from django.db.backends.creation import BaseDatabaseCreation
+
 from google.appengine.api.datastore import _GetConnection, _SetConnection
+
+logger = logging.getLogger(__name__)
 
 def complain(*args, **kwargs):
     pass
@@ -52,6 +55,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         self.operators = []
     
     def _enter_transaction_management(self, managed):
+        logger.info('Entering Transaction')
         self.managed(managed)
         self.old_connection = _GetConnection()
         # TODO: optionally pass a config 
@@ -59,6 +63,7 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         _SetConnection(self.connection)
     
     def _leave_transaction_management(self, managed):
+        logger.info('Leaving Transaction')
         self.connection = self.old_connection
         _SetConnection(self.connection)
     
@@ -66,11 +71,11 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         if hasattr(self.connection, 'commit'):
             self.connection.commit()
         else:
-            logging.error("Not in transaction")
+            logger.error("Not in transaction")
     
     def _rollback(self):
         logging.error('running rollback')
         if hasattr(self.connection, 'rollback'):
             self.connection.rollback()
         else:
-            logging.error("Not in transaction")
+            logger.error("Not in transaction")
