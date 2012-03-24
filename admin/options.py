@@ -1,20 +1,19 @@
+
+from gettext import gettext as _
+
 from google.appengine.ext import db
+from google.appengine.ext.deferred.deferred import defer
 
 import djangoforms
-from changelist import GAEChangeList
+from .changelist import GAEChangeList
+from .utils import decorate_model
 
 from django.contrib.admin import ModelAdmin as DjangoModelAdmin
-from django.db.models.options import Options
 from django.utils.safestring import mark_safe
 from django import template
 from django.shortcuts import render_to_response
+from django.http import Http404
 
-class PK:
-    attname = 'id'
-
-class DefaultMeta:
-    db_table = 'google'
-    ordering = 'blah'
 
 class ModelAdmin(DjangoModelAdmin):
     """Default class for instances of google.appengine.ext.db.Model"""
@@ -22,14 +21,8 @@ class ModelAdmin(DjangoModelAdmin):
     form = None
     
     def __init__(self, model, admin_site):
-        # Fake options to make django happy
-        opts = Options(DefaultMeta, 'google')
-        opts.pk = PK()
-        opts.contribute_to_class(model, 'googles')
-        # Add some methods that Django uses
-        model.serializable_value = lambda m, attr: getattr(m, attr)
-        model._deferred = False
-        model._get_pk_val = lambda m: m.key().id_or_name()
+        # add meta class and various attributes/methods for django
+        model = decorate_model(model)
         super(ModelAdmin, self).__init__(model, admin_site)
     
     def queryset(self, request):
@@ -52,6 +45,11 @@ class ModelAdmin(DjangoModelAdmin):
     def save_model(self, request, obj, form, change):
         from django.db.transaction import set_dirty
         obj.put()
+        set_dirty()
+    
+    def delete_model(self, request, obj):
+        from django.db.transaction import set_dirty
+        obj.delete()
         set_dirty()
     
     def get_form(self, request, obj=None, **kwargs):
@@ -129,13 +127,53 @@ class ModelAdmin(DjangoModelAdmin):
             "admin/change_form.html"
         ], context, context_instance=context_instance)
     
+    def history_view(self, request, object_id, extra_context=None):
+        "The 'history' admin view for this model."
+        from .models import LogEntry
+        model = self.model
+        opts = model._meta
+        app_label = opts.app_label
+        parent = db.Key(object_id)
+        action_list = LogEntry.all().ancestor(parent).order('-action_time').fetch(100)
+        # If no history was found, see whether this object even exists.
+        obj = db.get(object_id)
+        if obj is None:
+            raise Http404
+        
+        context = {
+            'title': _('Change history: %s') % obj,
+            'action_list': action_list,
+            'module_name': opts.verbose_name_plural,
+            'object': obj,
+            'root_path': self.admin_site.root_path,
+            'app_label': app_label,
+        }
+        context.update(extra_context or {})
+        context_instance = template.RequestContext(request, current_app=self.admin_site.name)
+        return render_to_response(self.object_history_template or [
+            "admin/%s/%s/object_history.html" % (app_label, opts.object_name.lower()),
+            "admin/%s/object_history.html" % app_label,
+            "admin/object_history.html"
+        ], context, context_instance=context_instance)
+    
     def log_addition(self, request, obj):
         """
         Log that an object has been successfully added.
 
         The default implementation creates an admin LogEntry object.
         """
-        pass
+        from .tasks import create_log
+        from django.contrib.admin.models import ADDITION
+        defer(create_log, 
+              user_id = request.user.id,
+              user_name = unicode(request.user),
+              content_type = obj._meta.verbose_name,
+              app_label = obj._meta.app_label,
+              object_id = obj.pk,
+              object_repr = unicode(obj),
+              action_flag = ADDITION
+        )
+        
 
     def log_change(self, request, obj, message):
         """
@@ -143,7 +181,18 @@ class ModelAdmin(DjangoModelAdmin):
 
         The default implementation creates an admin LogEntry object.
         """
-        pass
+        from .tasks import create_log
+        from django.contrib.admin.models import CHANGE
+        defer(create_log, 
+              user_id = request.user.id,
+              user_name = unicode(request.user),
+              content_type = obj._meta.verbose_name,
+              app_label = obj._meta.app_label,
+              object_id = obj.pk,
+              object_repr = unicode(obj),
+              action_flag = CHANGE,
+              change_message = message
+        )
 
     def log_deletion(self, request, obj, object_repr):
         """
@@ -152,4 +201,11 @@ class ModelAdmin(DjangoModelAdmin):
 
         The default implementation creates an admin LogEntry object.
         """
-        pass
+        from .tasks import create_deletion_log
+        defer(create_deletion_log, 
+              user_id = request.user.id,
+              user_name = unicode(request.user),
+              content_type = obj._meta.verbose_name,
+              object_id = obj.pk,
+              object_repr = object_repr
+        )
