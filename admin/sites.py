@@ -3,8 +3,22 @@ from django.contrib.admin import AdminSite
 from options import ModelAdmin
 from django.shortcuts import redirect
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 
 class GAEAdminSite(AdminSite):
+    
+    def check_dependencies(self):
+        """
+        Check that all things needed to run the admin have been correctly installed.
+        """
+
+        if not 'django.contrib.admin' in settings.INSTALLED_APPS:
+            raise ImproperlyConfigured("Put 'django.contrib.admin' in your "
+                "INSTALLED_APPS setting in order to use the admin application.")
+        if not ('django.contrib.auth.context_processors.auth' in settings.TEMPLATE_CONTEXT_PROCESSORS or
+            'django.core.context_processors.auth' in settings.TEMPLATE_CONTEXT_PROCESSORS):
+            raise ImproperlyConfigured("Put 'django.contrib.auth.context_processors.auth' "
+                "in your TEMPLATE_CONTEXT_PROCESSORS setting in order to use the admin application.")
     
     def register(self, model_or_iterable, admin_class=None, **options):
         """
