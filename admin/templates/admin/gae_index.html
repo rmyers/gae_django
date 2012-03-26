@@ -1,0 +1,13 @@
+{% extends 'admin/index.html' %}
+{% load i18n %}
+
+{% block sidebar %}
+<div id="content-related">
+    <div class="module" id="recent-actions-module">
+        <h2>{% trans 'Recent Actions' %}</h2>
+        <h3>{% trans 'My Actions' %}</h3>
+            {% load gae_log %}
+            {% gae_admin_log 10 user %}
+    </div>
+</div>
+{% endblock %}

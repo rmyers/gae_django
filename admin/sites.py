@@ -7,6 +7,8 @@ from django.core.exceptions import ImproperlyConfigured
 
 class GAEAdminSite(AdminSite):
     
+    index_template = 'admin/gae_index.html'
+    
     def check_dependencies(self):
         """
         Check that all things needed to run the admin have been correctly installed.
