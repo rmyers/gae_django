@@ -1,0 +1,62 @@
+{% load i18n %}
+{% load debug_toolbar_utils %}
+
+<table>
+    <thead><th>RPC Time</th><th>Total Time</th><th>Overhead</th><th># RPC Calls</th></thead>
+    <tbody>
+        <tr>
+            <td>{{ rpc_time }} ms</td>
+            <td>{{ duration }} ms</td>
+            <td>{{ overhead }} ms</td>
+            <td>{{ traces|length }}</td>
+        </tr>
+    </tbody>
+</table>
+
+<h4>RPC Call Details</h4>
+
+<table>
+    <thead><th>RPC Call</th><th>Timeline</th><th>Duration</th><th>API</th><th>Response</th></thead>
+    <tbody>
+        {% for t in traces %}
+        <tr class="djDebugHoverable {% cycle 'djDebugOdd' 'djDebugEven' as rowcolors %}">
+            <td title="{{ t.request }}">{{ t.call }}</td>
+            <td class="timeline">
+               <div class="djDebugTimeline"><div class="djDebugLineChart" style="left:{% widthratio t.start duration 100 %}%;"><strong style="width:{% widthratio t.duration duration 100 %}%;">{{ t.duration }}</strong></div></div>
+            </td>
+            <td>{{ t.duration }}&nbsp;ms</td>
+            <td>{{ t.api }}&nbsp;ms</td>
+            <td>{{ t.response|truncatewords:2 }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="djDebugHoverable {% cycle rowcolors %}">
+            <th>RPC Time</th>
+            <td class="timeline">
+               <div class="djDebugTimeline"><div class="djDebugLineChart" style="left:0;"><strong style="width:{% widthratio rpc_time duration 100 %}%;">{{ rpc_time }}</strong></div></div>
+            </td>
+            <td>{{ rpc_time }}&nbsp;ms</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+        </tr>
+       <tr class="djDebugHoverable {% cycle rowcolors %}">
+            <th>Total Time</th>
+            <td class="timeline">
+               <div class="djDebugTimeline"><div class="djDebugLineChart" style="left:0;"><strong style="width:100%;">{{ rpc_time }}</strong></div></div>
+            </td>
+            <td>{{ duration }}&nbsp;ms</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+        </tr>
+    </tbody>
+</table>
+
+<h4>Show Full Details</h4>
+
+<p>  
+<strong>
+    <a id="show_details" class="djDebugToggle" href="#" onClick='document.getElementById("iframe").src="/_ah/stats/details?time={{ start }}";'>Show Detailed View</a>
+</strong>
+<span class="help">Requires appstats builtin set to 'on' in app.yaml</span>
+</p>
+
+<p><iframe id="iframe" width="100%" height="700px"></iframe></p> 
