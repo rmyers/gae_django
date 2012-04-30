@@ -126,6 +126,8 @@ def local_shell(appid=None, server=None):
     Open a local shell for this application
     
     The builtin 'remote_api' must be set to 'on' in your app.yaml file.
+    The default will use the remote api against your local dev server,
+    which is at 'localhost:8080'
     
         $ fab local_shell
         
@@ -133,7 +135,7 @@ def local_shell(appid=None, server=None):
         $ fab local_shell:different-id
         
         Point to a different server
-        $ fab local_shell:server=localhost
+        $ fab local_shell:server=localhost:8081
     """
     server = server or 'localhost:8080'
     
