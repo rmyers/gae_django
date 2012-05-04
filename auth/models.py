@@ -79,7 +79,9 @@ class User(db.Model):
             self.password = '%s$%s$%s' % (algo, salt, hsh)
 
     def check_password(self, raw_password):
-        return raw_password == self.password
+        if '$' not in self.password:
+            return False
+        return check_password(raw_password, self.password)
 
     def set_unusable_password(self):
         # Sets a value that will never be a valid hash
