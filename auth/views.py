@@ -34,7 +34,7 @@ def twitter_verify(request):
     user = authenticate(auth_token=auth_token, auth_verifier=auth_verifier)
     login_user(request, user)
     
-    return redirect('/')
+    return redirect(settings.LOGIN_REDIRECT_URL)
 
 def twitter_request(request):
     """
