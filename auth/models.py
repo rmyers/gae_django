@@ -1,6 +1,4 @@
 from google.appengine.ext import db
-from django.contrib.auth.models import get_hexdigest, check_password,\
-    UNUSABLE_PASSWORD
 
 class User(db.Model):
     email = db.EmailProperty()
@@ -69,6 +67,7 @@ class User(db.Model):
         return full_name.strip()
 
     def set_password(self, raw_password):
+        from django.contrib.auth.models import get_hexdigest
         if raw_password is None:
             self.set_unusable_password()
         else:
@@ -79,15 +78,18 @@ class User(db.Model):
             self.password = '%s$%s$%s' % (algo, salt, hsh)
 
     def check_password(self, raw_password):
+        from django.contrib.auth.models import check_password
         if '$' not in self.password:
             return False
         return check_password(raw_password, self.password)
 
     def set_unusable_password(self):
+        from django.contrib.auth.models import UNUSABLE_PASSWORD
         # Sets a value that will never be a valid hash
         self.password = UNUSABLE_PASSWORD
 
     def has_usable_password(self):
+        from django.contrib.auth.models import UNUSABLE_PASSWORD
         if self.password is None \
             or self.password == UNUSABLE_PASSWORD:
             return False
