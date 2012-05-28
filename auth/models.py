@@ -1,6 +1,6 @@
 from google.appengine.ext import db
 
-class User(db.Model):
+class User(db.Expando):
     email = db.EmailProperty()
     username = db.StringProperty()
     first_name = db.StringProperty()
@@ -42,6 +42,7 @@ class User(db.Model):
             user.username = info['username']
             user.service = 'twitter'
             user.token = info['token']
+            user.password = '!'
             user.picture_url = db.Link(info['picture'])
             user.put()
 
