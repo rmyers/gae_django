@@ -39,7 +39,7 @@ import zlib
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django_1_4.utils import baseconv
+import baseconv
 from django.utils.crypto import constant_time_compare, salted_hmac
 from django.utils.encoding import force_unicode, smart_str
 from django.utils.importlib import import_module

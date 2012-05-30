@@ -4,7 +4,7 @@ except ImportError:
     import pickle
 
 from django.conf import settings
-from django_1_4.core import signing
+import signing
 from django.contrib.sessions.backends.base import SessionBase
 
 
