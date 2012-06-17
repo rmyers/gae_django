@@ -378,14 +378,12 @@ class TwitterClient(OAuthClient):
         token=access_token, secret=access_secret, protected=True)
 
     data = json.loads(response.content)
+    
+    # Standardize some of the data
+    data["username"] = data["screen_name"]
+    data["picture"] = data["profile_image_url"]
 
-    user_info = self._get_default_user_info()
-    user_info["id"] = data["id"]
-    user_info["username"] = data["screen_name"]
-    user_info["name"] = data["name"]
-    user_info["picture"] = data["profile_image_url"]
-
-    return user_info
+    return data
 
 
 class MySpaceClient(OAuthClient):

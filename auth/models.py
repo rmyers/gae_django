@@ -1,19 +1,14 @@
-from google.appengine.ext import db
+from webapp2_extras.appengine.auth.models import User as BaseUser
+from google.appengine.ext import ndb
 
-class User(db.Expando):
-    email = db.EmailProperty()
-    username = db.StringProperty()
-    first_name = db.StringProperty()
-    last_name = db.StringProperty()
-    picture_url = db.LinkProperty()
-    service = db.StringProperty()
-    token = db.StringProperty()
-    password = db.StringProperty()
-    is_superuser = db.BooleanProperty(default=False)
-    is_staff = db.BooleanProperty(default=False)
-    is_active = db.BooleanProperty(default=True)
-    last_login = db.DateTimeProperty(auto_now=True)
-    date_joined = db.DateTimeProperty(auto_now_add=True)
+class User(BaseUser):
+    """
+    Django style user model from the webapp2_extras user model.
+    """
+
+    is_superuser = ndb.BooleanProperty(default=False)
+    is_staff = ndb.BooleanProperty(default=False)
+    is_active = ndb.BooleanProperty(default=True)
 
     def __unicode__(self):
         if self.first_name and self.last_name:
@@ -31,8 +26,7 @@ class User(db.Expando):
         
     @classmethod
     def from_twitter_info(cls, info):
-        token = info['token']
-        user = User.all().filter('token', token).get()
+        user = cls.get_by_auth_id('twitter:%s' % info['id'])
 
         if user is None:
             user = User()
@@ -40,10 +34,10 @@ class User(db.Expando):
             user.first_name = name[0]
             user.last_name = name[-1]
             user.username = info['username']
-            user.service = 'twitter'
-            user.token = info['token']
-            user.password = '!'
-            user.picture_url = db.Link(info['picture'])
+            user.location = info.get('location', "Pythonville, USA")
+            user.description = info.get('description', '')
+            user.url = info.get('url', '')
+            user.picture_url = info.get('picture')
             user.put()
 
         return user
