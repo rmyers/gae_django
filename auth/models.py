@@ -26,19 +26,24 @@ class User(BaseUser):
         
     @classmethod
     def from_twitter_info(cls, info):
-        user = cls.get_by_auth_id('twitter:%s' % info['id'])
+        auth_id = 'twitter:%s' % info['username']
+        user = cls.get_by_auth_id(auth_id)
 
         if user is None:
-            user = User()
             name = info.get('name', 'Joe Doe').split()
-            user.first_name = name[0]
-            user.last_name = name[-1]
-            user.username = info['username']
-            user.location = info.get('location', "Pythonville, USA")
-            user.description = info.get('description', '')
-            user.url = info.get('url', '')
-            user.picture_url = info.get('picture')
-            user.put()
+            data = {
+                'first_name': name[0],
+                'last_name': name[1],
+                'location': info.get('location', "Pythonville, USA"),
+                'description': info.get('description', ''),
+                'url': info.get('url'),
+                'picture_url': info.get('picture', ''),
+                # Default username
+                'username': info['username']
+            }
+            created, user = User.create_user(auth_id, **data)
+            if not created:
+                raise Exception('Auth ID is not unique %s' % auth_id)
 
         return user
 
