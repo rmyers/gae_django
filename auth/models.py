@@ -1,6 +1,8 @@
 from webapp2_extras.appengine.auth.models import User as BaseUser
 from google.appengine.ext import ndb
 
+from django.template.defaultfilters import slugify
+
 class User(BaseUser):
     """
     Django style user model from the webapp2_extras user model.
@@ -9,6 +11,10 @@ class User(BaseUser):
     is_superuser = ndb.BooleanProperty(default=False)
     is_staff = ndb.BooleanProperty(default=False)
     is_active = ndb.BooleanProperty(default=True)
+    
+    # location info
+    location = ndb.StringProperty()
+    location_slug = ndb.ComputedProperty(lambda self: slugify(self.location))
 
     def __unicode__(self):
         if self.first_name and self.last_name:
