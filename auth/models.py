@@ -37,9 +37,15 @@ class User(BaseUser):
 
         if user is None:
             name = info.get('name', 'Joe Doe').split()
+            if len(name) < 2:
+                fname = name[0]
+                lname = ''
+            else:
+                fname = name[0]
+                lname = name[1]
             data = {
-                'first_name': name[0],
-                'last_name': name[1],
+                'first_name': fname,
+                'last_name': lname,
                 'location': info.get('location', "Pythonville, USA"),
                 'description': info.get('description', ''),
                 'url': info.get('url'),
