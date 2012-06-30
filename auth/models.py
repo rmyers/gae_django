@@ -24,7 +24,7 @@ class User(BaseUser):
     @property
     def id(self):
         """Return the id of this user from the key object."""
-        return self.key().id()
+        return self.key.id()
     
     @property
     def pk(self):
