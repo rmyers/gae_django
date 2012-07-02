@@ -368,12 +368,10 @@ class GithubClient(OAuthClient):
         if additional_params:
             params.update(additional_params)
         
-        logging.error(params)
         return urlencode(params)
     
     def _get_access_token(self, code):
         """Get the access token for the user."""
-        logging.error('here')
         result = self.make_request(self.access_url, method=urlfetch.POST,
             additional_params={
                 'code': code,
@@ -381,13 +379,13 @@ class GithubClient(OAuthClient):
                 'client_id': self.client_id, 
                 'redirect_uri': self.redirect_uri
         })
-        credentials = self._extract_credentials(result)
-        return credentials['access_token'][0]
+        token = self._extract_token(result)
+        return token 
     
-    def _extract_credentials(self, result):
-        logging.error(result.content)
+    def _extract_token(self, result):
         parsed_results = urlparse.parse_qs(result.content)
-        return parsed_results
+        access_token = parsed_results['access_token'][0]
+        return access_token
     
     def get_authorization_url(self):
         params = {'client_id': self.client_id}
