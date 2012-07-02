@@ -29,35 +29,6 @@ class User(BaseUser):
     @property
     def pk(self):
         return self.id
-        
-    @classmethod
-    def from_twitter_info(cls, info):
-        auth_id = 'twitter:%s' % info['username']
-        user = cls.get_by_auth_id(auth_id)
-
-        if user is None:
-            name = info.get('name', 'Joe Doe').split()
-            if len(name) < 2:
-                fname = name[0]
-                lname = ''
-            else:
-                fname = name[0]
-                lname = name[1]
-            data = {
-                'first_name': fname,
-                'last_name': lname,
-                'location': info.get('location', "Pythonville, USA"),
-                'description': info.get('description', ''),
-                'url': info.get('url'),
-                'picture_url': info.get('picture', ''),
-                # Default username
-                'username': info['username']
-            }
-            created, user = User.create_user(auth_id, **data)
-            if not created:
-                raise Exception('Auth ID is not unique %s' % auth_id)
-
-        return user
 
     def is_anonymous(self):
         """

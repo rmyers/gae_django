@@ -9,4 +9,6 @@ urlpatterns = patterns('gae_django.auth.views',
     url(r'^twitter/$', 'twitter_request'),
     url(r'^twitter/verify/$', 'twitter_verify'),
     url(r'^twitter/signin/$', 'twitter_signin'),
+    url(r'^github/verify/$', 'github_verify'),
+    url(r'^github/signin/$', 'github_signin'),
 )

@@ -58,6 +58,7 @@ from urllib import quote as urlquote
 from urllib import unquote as urlunquote
 
 import logging
+import urlparse
 
 
 TWITTER = "twitter"
@@ -337,6 +338,76 @@ class OAuthClient():
       "picture": ""
     }
 
+class Reese:
+    pass
+
+class GithubClient(OAuthClient):
+    """Github Client.
+    
+    Git hub uses OAuth2 and is much simplier
+    """
+    
+    def __init__(self, consumer_key, consumer_secret, callback_url='', client_scopes=[]):
+        self.client_id = consumer_key
+        self.client_secret = consumer_secret
+        self.redirect_uri = callback_url
+        self.request_url = 'https://github.com/login/oauth/authorize'
+        self.access_url = 'https://github.com/login/oauth/access_token'
+        self.client_scopes = client_scopes
+    
+    def prepare_request(self, url, token="", secret="", additional_params=None,
+                      method=urlfetch.GET, t=None, nonce=None):
+        """Prepare Request.
+    
+        Prepares an authenticated request to any OAuth protected resource.
+    
+        Returns the payload of the request.
+        """
+        params = {}
+        if token:
+            params['access_token'] = token
+        if secret:
+            params['client_secret'] = self.client_secret
+        if additional_params:
+            params.update(additional_params)
+        
+        logging.error(params)
+        return urlencode(params)
+    
+    def _get_access_token(self, code):
+        """Get the access token for the user."""
+        logging.error('here')
+        result = self.make_request(self.access_url, method=urlfetch.POST,
+            additional_params={
+                'code': code,
+                'client_secret': self.client_secret,
+                'client_id': self.client_id, 
+                'redirect_uri': self.redirect_uri
+        })
+        credentials = self._extract_credentials(result)
+        return credentials['access_token'][0]
+    
+    def _extract_credentials(self, result):
+        logging.error(result.content)
+        parsed_results = urlparse.parse_qs(result.content)
+        return parsed_results
+    
+    def get_authorization_url(self):
+        params = {'client_id': self.client_id}
+        scopes = ','.join(self.client_scopes)
+        if scopes:
+            params['scopes'] = scopes
+        if self.redirect_uri:
+            params['redirect_uri'] = self.redirect_uri
+        return '%s?%s' % (self.request_url, urlencode(params))
+    
+    def get_user_info(self, code):
+        access_token = self._get_access_token(code)
+        url = 'https://api.github.com/user'
+        results = self.make_request(url, token=access_token)
+        info = json.loads(results.content)
+        info['access_token'] = access_token
+        return info
 
 class TwitterClient(OAuthClient):
   """Twitter Client.
@@ -629,3 +700,31 @@ class YammerClient(OAuthClient):
     user_info["picture"] = data["mugshot_url"]
     user_info["name"] = data["full_name"]
     return user_info
+
+class FacebookClient:
+  """Facebook Client.
+
+  A client for talking to the Facebook API using OAuth as the
+  authentication model.
+  """
+
+  def __init__(self, consumer_key, consumer_secret, callback_url):
+    """Constructor."""
+    self.args = dict(client_id=consumer_key, redirect_uri=callback_url)
+    self.secret = consumer_secret
+    
+  def get_authorization_url(self):
+    return "https://graph.facebook.com/oauth/authorize?" + urlencode(self.args)
+    
+  def get_auth_token(self, verification_code):
+    if verification_code:
+      self.args["client_secret"] = self.secret
+      self.args["code"] = verification_code
+      response = cgi.parse_qs(urlopen("https://graph.facebook.com/oauth/access_token?" + urlencode(args)).read())
+      access_token = response["access_token"][-1]    
+      return access_token
+    return None
+    
+  def get_user_info(self, auth_token, auth_verifier=""):
+    profile = json.load(urlopen("https://graph.facebook.com/me?" + urlencode(dict(access_token=auth_token))))
+    return profile

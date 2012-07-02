@@ -34,6 +34,34 @@ class GAEBackend(ModelBackend):
     
     def get_group_permissions(self, user_obj, obj=None):
         raise NotImplementedError
+    
+    def user_from_info(self, info):
+        """Get or create a user from the oauth providers info.
+        
+        * info: dict in the form::
+        
+            {
+                'first_name': fname,
+                'last_name': lname,
+                'location': info.get('location', "Pythonville, USA"),
+                'description': info.get('description', ''),
+                'url': info.get('url'),
+                'picture_url': info.get('picture', ''),
+                # Default username
+                'username': info['username'],
+                'auth_id': 'twitter:username'
+            }
+        """
+        
+        auth_id = info.pop('auth_id')
+        user = User.get_by_auth_id(auth_id)
+
+        if user is None:
+            created, user = User.create_user(auth_id, **info)
+            if not created:
+                raise Exception('Auth ID is not unique %s' % auth_id)
+
+        return user
 
 class GAETwitterBackend(GAEBackend):
     
@@ -45,5 +73,64 @@ class GAETwitterBackend(GAEBackend):
         
         client = oauth.TwitterClient(consumer_key, consumer_secret, callback_url)
         user_info = client.get_user_info(auth_token, auth_verifier=auth_verifier)
+            
+        return self.user_from_info('twitter', self._parse_info(user_info))
+    
+    def _parse_info(self, info):
+        """Parse the raw info from twitter for creating a new user."""
+        name = info.get('name', 'Joe Doe').split()
+        if len(name) < 2:
+            fname = name[0]
+            lname = ''
+        else:
+            fname = name[0]
+            lname = name[1]
+        data = {
+            'first_name': fname,
+            'last_name': lname,
+            'location': info.get('location', ""),
+            'description': info.get('description', ''),
+            'url': info.get('url'),
+            'picture_url': info.get('picture', ''),
+            # Default username
+            'username': info['username'],
+            'auth_id': 'twitter:%s' % info['username']
+        }
+        return data
 
-        return User.from_twitter_info(user_info)
+class GAEGithubBackend(GAEBackend):
+    
+    def authenticate(self, github_code=None):
+        import oauth
+        consumer_key = settings.GITHUB_CONSUMER_KEY
+        consumer_secret = settings.GITHUB_CONSUMER_SECRET
+        callback_url = settings.GITHUB_CALLBACK
+        
+        client = oauth.GithubClient(consumer_key, consumer_secret, callback_url)
+        user_info = client.get_user_info(code=github_code)
+        
+        return self.user_from_info(self._parse_info(user_info))
+    
+    def _parse_info(self, info):
+        
+        name = info.get('name', 'Joe Doe').split()
+        if len(name) < 2:
+            fname = name[0]
+            lname = ''
+        else:
+            fname = name[0]
+            lname = name[1]
+        data = {
+            'first_name': fname,
+            'last_name': lname,
+            'location': info.get('location', ""),
+            'description': info.get('bio', ''),
+            'url': info.get('blog_url'),
+            'picture_url': info.get('avatar_url', ''),
+            # Default username
+            'username': 'g~%s' % info['login'],
+            'auth_id': 'github:%s' % info['login'],
+            'github_access_token': info['access_token']
+        }
+        return data
+        

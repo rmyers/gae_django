@@ -1,4 +1,5 @@
 from django.conf import settings
+from django import http
 from django.shortcuts import redirect
 from django.contrib.auth import authenticate, SESSION_KEY,\
     BACKEND_SESSION_KEY, logout
@@ -55,3 +56,33 @@ def twitter_signin(request):
         
     client = oauth.TwitterClient(consumer_key, consumer_secret, callback_url)
     return redirect(client.get_authenticate_url())
+
+def github_signin(request):
+    """
+    Login or signup with github.
+    """
+    consumer_key = settings.GITHUB_CONSUMER_KEY
+    consumer_secret = settings.GITHUB_CONSUMER_SECRET
+    callback_url = settings.GITHUB_CALLBACK
+    
+    client = oauth.GithubClient(consumer_key, consumer_secret, callback_url)
+    return redirect(client.get_authorization_url())
+
+def github_link(request):
+    """
+    Link an existing account to Github
+    """
+
+def github_verify(request):
+    
+    code = request.REQUEST.get("code")
+    if not code:
+        # user did not authorize?
+        raise http.HttpResponseForbidden
+    
+    user = authenticate(github_code=code)
+    login_user(request, user)
+    
+    return redirect(settings.LOGIN_REDIRECT_URL)
+    
+    
