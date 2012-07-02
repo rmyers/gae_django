@@ -30,18 +30,32 @@ class User(BaseUser):
     def pk(self):
         return self.id
 
+    def _grab_auth_id(self, kind):
+        """helper method to return the first auth_id of a certain kind"""
+        username = None
+        for auth in self.auth_ids:
+            if auth.startswith('%s:' % kind):
+                _, username = auth.split(':')
+                break
+        return username
+        
     @property
     def username(self):
         """
         Username makes Django happy, but we use auth_ids list.
         Just grab the first one, with 'own:...'
         """
-        username = None
-        for auth in self.auth_ids:
-            if auth.startswith('own:'):
-                _, username = auth.split(':')
-                break
-        return username
+        return self._grab_auth_id('own')
+    
+    @property
+    def twitter(self):
+        """Grab the users twitter account if they are registered."""
+        return self._grab_auth_id('twitter')
+    
+    @property
+    def github(self):
+        """Grab the users github account if they are registered."""
+        return self._grab_auth_id('github')
         
     def is_anonymous(self):
         """
