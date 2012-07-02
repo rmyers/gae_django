@@ -338,9 +338,6 @@ class OAuthClient():
       "picture": ""
     }
 
-class Reese:
-    pass
-
 class GithubClient(OAuthClient):
     """Github Client.
     
