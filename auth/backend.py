@@ -52,14 +52,31 @@ class GAEBackend(ModelBackend):
                 'auth_id': 'twitter:username'
             }
         """
+        from random import randint
         
         auth_id = info.pop('auth_id')
+        username = info.pop('username')
         user = User.get_by_auth_id(auth_id)
 
         if user is None:
             created, user = User.create_user(auth_id, **info)
             if not created:
                 raise Exception('Auth ID is not unique %s' % auth_id)
+            
+            # Add the username as an auth_id, Add _# on the end until successful
+            # don't loop forever tho, try a few times then give up.
+            added = False
+            for attempt in xrange(10):
+                _username = username
+                if attempt:
+                    # try to make the name unique
+                    _username = '%s%s' % (username, randint(1,100))
+                added, _ = user.add_auth_id('own:%s' % _username)
+                if added:
+                    break
+            
+            if not added:
+                raise Exception('Unable to add username: %s' % username)
 
         return user
 
@@ -128,7 +145,7 @@ class GAEGithubBackend(GAEBackend):
             'url': info.get('blog_url'),
             'picture_url': info.get('avatar_url', ''),
             # Default username
-            'username': 'g~%s' % info['login'],
+            'username': info['login'],
             'auth_id': 'github:%s' % info['login'],
             'github_access_token': info['access_token']
         }

@@ -30,6 +30,19 @@ class User(BaseUser):
     def pk(self):
         return self.id
 
+    @property
+    def username(self):
+        """
+        Username makes Django happy, but we use auth_ids list.
+        Just grab the first one, with 'own:...'
+        """
+        username = None
+        for auth in self.auth_ids:
+            if auth.startswith('own:'):
+                _, username = auth.split(':')
+                break
+        return username
+        
     def is_anonymous(self):
         """
         Always returns False. This is a way of comparing User objects to
