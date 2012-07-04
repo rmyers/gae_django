@@ -31,7 +31,10 @@ def twitter_verify(request):
 
     auth_token = request.REQUEST.get("oauth_token")
     auth_verifier = request.REQUEST.get("oauth_verifier")
-
+    
+    if not (auth_token or auth_verifier):
+        raise http.HttpResponseBadRequest()
+    
     user = authenticate(auth_token=auth_token, auth_verifier=auth_verifier)
     login_user(request, user)
     
@@ -53,7 +56,10 @@ def twitter_signin(request):
     consumer_key = settings.TWITTER_CONSUMER_KEY
     consumer_secret = settings.TWITTER_CONSUMER_SECRET
     callback_url = settings.TWITTER_CALLBACK
-        
+    
+    if request.user.is_authenticated():
+        return redirect(settings.LOGIN_REDIRECT_URL)
+    
     client = oauth.TwitterClient(consumer_key, consumer_secret, callback_url)
     return redirect(client.get_authenticate_url())
 
@@ -64,6 +70,9 @@ def github_signin(request):
     consumer_key = settings.GITHUB_CONSUMER_KEY
     consumer_secret = settings.GITHUB_CONSUMER_SECRET
     callback_url = settings.GITHUB_CALLBACK
+    
+    if request.user.is_authenticated():
+        return redirect(settings.LOGIN_REDIRECT_URL)
     
     client = oauth.GithubClient(consumer_key, consumer_secret, callback_url)
     return redirect(client.get_authorization_url())

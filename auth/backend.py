@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.backends import ModelBackend
 from django.conf import settings
 
@@ -69,6 +71,7 @@ class GAEBackend(ModelBackend):
             for attempt in xrange(10):
                 _username = username
                 if attempt:
+                    logging.error("Unable to add username: %s", _username)
                     # try to make the name unique
                     _username = '%s%s' % (username, randint(1,100))
                 added, _ = user.add_auth_id('own:%s' % _username)
@@ -90,8 +93,8 @@ class GAETwitterBackend(GAEBackend):
         
         client = oauth.TwitterClient(consumer_key, consumer_secret, callback_url)
         user_info = client.get_user_info(auth_token, auth_verifier=auth_verifier)
-            
-        return self.user_from_info('twitter', self._parse_info(user_info))
+  
+        return self.user_from_info(self._parse_info(user_info))
     
     def _parse_info(self, info):
         """Parse the raw info from twitter for creating a new user."""
