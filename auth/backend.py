@@ -24,7 +24,8 @@ class GAEBackend(ModelBackend):
         """
         from google.appengine.ext import ndb
         user_key = ndb.Key('User', int(user_id))
-        return user_key.get()
+        future = user_key.get_async()
+        return future.get_result()
     
     def has_perm(self, user_obj, perm, obj=None):
         if user_obj.is_admin:

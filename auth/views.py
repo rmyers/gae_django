@@ -33,7 +33,7 @@ def twitter_verify(request):
     auth_verifier = request.REQUEST.get("oauth_verifier")
     
     if not (auth_token or auth_verifier):
-        raise http.HttpResponseBadRequest()
+        return redirect('/')
     
     user = authenticate(auth_token=auth_token, auth_verifier=auth_verifier)
     login_user(request, user)
@@ -87,7 +87,7 @@ def github_verify(request):
     code = request.REQUEST.get("code")
     if not code:
         # user did not authorize?
-        raise http.HttpResponseForbidden
+        return redirect('/')
     
     user = authenticate(github_code=code)
     login_user(request, user)
