@@ -12,7 +12,7 @@ from django.utils.translation import ugettext as _
 from django.utils.html import escape
 from django.utils.safestring import mark_safe
 import datetime
-from google.appengine.ext import db
+from google.appengine.ext import db, ndb
 
 class FilterSpec(object):
     filter_specs = []
@@ -72,7 +72,9 @@ class BooleanFieldFilterSpec(FilterSpec):
         self.lookup_val2 = request.GET.get(self.lookup_kwarg2, None)
 
     def title(self):
-        return self.field.verbose_name
+        if hasattr(self.field, 'verbose_name'):
+            return self.field.verbose_name
+        return self.field._verbose_name
 
     def choices(self, cl):
         for k, v in ((_('All'), None), (_('Yes'), '1'), (_('No'), '0')):
@@ -90,6 +92,9 @@ class BooleanFieldFilterSpec(FilterSpec):
 
 FilterSpec.register(lambda f: isinstance(f, db.BooleanProperty),
                                  BooleanFieldFilterSpec)
+FilterSpec.register(lambda f: isinstance(f, ndb.BooleanProperty),
+                                 BooleanFieldFilterSpec)
+
 
 class ChoicesFilterSpec(FilterSpec):
     def __init__(self, f, request, params, model, model_admin,

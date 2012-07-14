@@ -5,14 +5,15 @@ from google.appengine.ext import db
 from google.appengine.ext.deferred.deferred import defer
 
 import djangoforms
-from .changelist import GAEChangeList
-from .utils import decorate_model
+from .changelist import GAEChangeList, NDBChangeList
+from .utils import decorate_model, decorate_ndb_model
 
 from django.contrib.admin import ModelAdmin as DjangoModelAdmin
 from django.utils.safestring import mark_safe
 from django import template
 from django.shortcuts import render_to_response
 from django.http import Http404
+import logging
 
 
 class ModelAdmin(DjangoModelAdmin):
@@ -209,3 +210,20 @@ class ModelAdmin(DjangoModelAdmin):
               object_id = obj.pk,
               object_repr = object_repr
         )
+
+class NDBModelAdmin(ModelAdmin):
+    
+    def __init__(self, model, admin_site):
+        logging.error('NDBMODEL')
+        # add meta class and various attributes/methods for django
+        model = decorate_ndb_model(model)
+        super(ModelAdmin, self).__init__(model, admin_site)
+    
+    def queryset(self, request):
+        return self.model.query()
+
+    def get_changelist(self, request, **kwargs):
+        """
+        Returns the ChangeList class for use on the changelist page.
+        """
+        return NDBChangeList

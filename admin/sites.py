@@ -1,9 +1,12 @@
 from django.contrib.admin import AdminSite
 
-from options import ModelAdmin
+from options import ModelAdmin, NDBModelAdmin
 from django.shortcuts import redirect
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+
+from google.appengine.ext import db, ndb
+import logging
 
 class GAEAdminSite(AdminSite):
     
@@ -36,13 +39,17 @@ class GAEAdminSite(AdminSite):
 
         If a model is abstract, this will raise ImproperlyConfigured.
         """
-        if not admin_class:
-            admin_class = ModelAdmin
-
         if not isinstance(model_or_iterable, (list, tuple)):
             model_or_iterable = [model_or_iterable]
         for model in model_or_iterable:
-
+            
+            if admin_class is None:
+                logging.error(type(model))
+                if isinstance(model, (ndb.model.MetaModel)):
+                    admin_class = NDBModelAdmin
+                else:
+                    admin_class = ModelAdmin
+            
             if model in self._registry:
                 raise AttributeError('The model %s is already registered' % model.__name__)
 
@@ -54,7 +61,7 @@ class GAEAdminSite(AdminSite):
                 # which causes issues later on.
                 options['__module__'] = __name__
                 admin_class = type("%sAdmin" % model.__name__, (admin_class,), options)
-
+            
             # Instantiate the admin class to save in the registry
             self._registry[model] = admin_class(model, self)
 

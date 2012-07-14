@@ -3,6 +3,7 @@ from django.contrib.admin.views.main import ChangeList, ALL_VAR, ORDER_VAR,\
 
 from filterspecs import FilterSpec
 from paginator import Paginator
+import logging
 
 class GAEChangeList(ChangeList):
     
@@ -85,3 +86,46 @@ class GAEChangeList(ChangeList):
                 if spec and spec.has_output():
                     filter_specs.append(spec)
         return filter_specs, bool(filter_specs)
+
+class NDBChangeList(GAEChangeList):
+    
+    def get_filters(self, request):
+        filter_specs = []
+        if self.list_filter:
+            for filter_name in self.list_filter:
+                field = self.model._properties.get(filter_name)
+                spec = FilterSpec.create(field, request, self.params,
+                                         self.model, self.model_admin,
+                                         field_path=filter_name)
+                if spec and spec.has_output():
+                    filter_specs.append(spec)
+        return filter_specs, bool(filter_specs)
+    
+    def url_for_result(self, result):
+        return "%s/" % result.key.urlsafe()
+    
+    def get_query_set(self):
+        qs = self.root_query_set
+        qs._filtered = False
+        lookup_params = self.params.copy() # a dictionary of the query string
+        for i in (ALL_VAR, ORDER_VAR, ORDER_TYPE_VAR, SEARCH_VAR, IS_POPUP_VAR, TO_FIELD_VAR):
+            if i in lookup_params:
+                del lookup_params[i]
+        for key, value in lookup_params.items():
+            if not isinstance(key, str):
+                # 'key' will be used as a keyword argument later, so Python
+                # requires it to be a string.
+                del lookup_params[key]
+                lookup_params[str(key)] = value
+            
+            _field, lookup = key.split('__')
+            field = getattr(self.model, _field)
+            if lookup == 'bool':
+                logging.info('Filter by boolean')
+                qs.filter(field == bool(int(value)))
+            elif lookup in ['iexact', 'exact']:
+                qs.filter(field == value)
+            # TODO: more
+            qs._filtered = True
+        
+        return qs
