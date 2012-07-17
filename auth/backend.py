@@ -13,9 +13,12 @@ class GAEBackend(ModelBackend):
     
     def authenticate(self, auth_id=None, password=None):
         """Support logging in as a normal user"""
-        user = User.get_by_auth_password(auth_id, password)
+        user = User.get_by_auth_id(auth_id)
         if user is None:
             return None
+        if user.check_password(password):
+            return user
+        
 
     def get_user(self, user_id):
         """
@@ -55,8 +58,6 @@ class GAEBackend(ModelBackend):
                 'auth_id': 'twitter:username'
             }
         """
-        from random import randint
-        
         auth_id = info.pop('auth_id')
         username = info.pop('username')
         user = User.get_by_auth_id(auth_id)
@@ -66,21 +67,7 @@ class GAEBackend(ModelBackend):
             if not created:
                 raise Exception('Auth ID is not unique %s' % auth_id)
             
-            # Add the username as an auth_id, Add _# on the end until successful
-            # don't loop forever tho, try a few times then give up.
-            added = False
-            for attempt in xrange(10):
-                _username = username
-                if attempt:
-                    logging.error("Unable to add username: %s", _username)
-                    # try to make the name unique
-                    _username = '%s%s' % (username, randint(1,100))
-                added, _ = user.add_auth_id('own:%s' % _username)
-                if added:
-                    break
-            
-            if not added:
-                raise Exception('Unable to add username: %s' % username)
+            user.add_username(username)
 
         return user
 

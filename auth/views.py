@@ -1,10 +1,13 @@
 from django.conf import settings
-from django import http
-from django.shortcuts import redirect
+from django import http, forms
+from django.shortcuts import redirect, render_to_response
 from django.contrib.auth import authenticate, SESSION_KEY,\
-    BACKEND_SESSION_KEY, logout
+    BACKEND_SESSION_KEY
 
 import oauth
+from models import User
+from forms import RegistrationForm
+from django.template.context import RequestContext
 
 def login_user(request, user):
     """
@@ -26,6 +29,42 @@ def login_user(request, user):
     request.session[BACKEND_SESSION_KEY] = user.backend
     if hasattr(request, 'user'):
         request.user = user
+
+def register(request, template_name='registration/register.html',
+    registration_form=RegistrationForm,
+    post_create_callback=None,
+    current_app=None, extra_context=None):
+    
+    if request.method == "POST":
+        form = registration_form(data=request.POST)
+        if form.is_valid():
+            email = form.cleaned_data.pop('email')
+            username = form.cleaned_data.pop('username')
+            password = form.cleaned_data.pop('password')
+
+            auth_id = 'email:%s' % email
+            created, user = User.create_user(auth_id, **form.cleaned_data)
+            if not created:
+                raise forms.ValidationError('Email is not unique %s' % auth_id)
+            
+            user.set_password(password)
+            user.add_username(username)
+            user.put()
+            
+            if post_create_callback:
+                post_create_callback(user)
+            
+            # Authenticate and log them in
+            user = authenticate(auth_id=auth_id, password=password)
+            login_user(request, user)
+            
+            return redirect(settings.LOGIN_REDIRECT_URL)
+    
+    else:
+        form = registration_form()
+    
+    return render_to_response(template_name, {'form': form},
+        context_instance=RequestContext(request))         
 
 def twitter_verify(request):
 

@@ -2,6 +2,8 @@ from webapp2_extras.appengine.auth.models import User as BaseUser
 from google.appengine.ext import ndb
 
 from django.template.defaultfilters import slugify
+from random import randint
+import logging
 
 class User(BaseUser):
     """
@@ -20,6 +22,9 @@ class User(BaseUser):
         if self.first_name and self.last_name:
             return self.get_full_name()
         return self.username
+    
+    def save(self):
+        return self.put()
     
     @property
     def id(self):
@@ -115,3 +120,19 @@ class User(BaseUser):
         if self.is_superuser:
             return True
         return False
+    
+    def add_username(self, username):
+        """Helper method for adding a unique username, """
+        added = False
+        for attempt in xrange(10):
+            _username = username
+            if attempt:
+                logging.error("Unable to add username: %s", _username)
+                # try to make the name unique
+                _username = '%s%s' % (username, randint(1,100))
+            added, _ = self.add_auth_id('own:%s' % _username)
+            if added:
+                break
+            
+            if not added:
+                raise Exception('Unable to add username: %s' % username)
