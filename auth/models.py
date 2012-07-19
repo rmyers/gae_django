@@ -134,5 +134,5 @@ class User(BaseUser):
             if added:
                 break
             
-            if not added:
-                raise Exception('Unable to add username: %s' % username)
+        if not added:
+            raise Exception('Unable to add username: %s' % username)
