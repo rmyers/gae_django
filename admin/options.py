@@ -14,6 +14,7 @@ from django import template
 from django.shortcuts import render_to_response
 from django.http import Http404
 import logging
+from google.appengine.api import datastore
 
 
 class ModelAdmin(DjangoModelAdmin):
@@ -134,10 +135,10 @@ class ModelAdmin(DjangoModelAdmin):
         model = self.model
         opts = model._meta
         app_label = opts.app_label
-        parent = db.Key(object_id)
+        parent = datastore.Key(object_id)
         action_list = LogEntry.all().ancestor(parent).order('-action_time').fetch(100)
         # If no history was found, see whether this object even exists.
-        obj = db.get(object_id)
+        obj = self.get_object(request, object_id)
         if obj is None:
             raise Http404
         
