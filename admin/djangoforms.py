@@ -857,8 +857,10 @@ def property_clean(prop, value):
   """
   if value is not None:
     try:
-      validate = getattr(prop, 'validate', getattr(prop, '_validate'))
-      validate(prop.make_value_from_form(value))
+      if hasattr(prop, 'validate'):
+        prop.validate(prop.make_value_from_form(value))
+      elif hasattr(prop, '_validate'):
+        prop._validate(prop.make_value_from_form(value))
     except (db.BadValueError, ValueError), e:
       raise forms.ValidationError(unicode(e))
 
