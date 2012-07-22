@@ -1,7 +1,7 @@
 
 from gettext import gettext as _
 
-from google.appengine.ext import db
+from google.appengine.ext import db, ndb
 from google.appengine.ext.deferred.deferred import defer
 
 import djangoforms
@@ -221,7 +221,16 @@ class NDBModelAdmin(ModelAdmin):
     
     def queryset(self, request):
         return self.model.query()
-
+    
+    def get_object(self, request, object_id):
+        """
+        Returns an instance matching the primary key provided. ``None``  is
+        returned if no match is found (or the object_id failed validation
+        against the primary key field).
+        """
+        key = ndb.Key(urlsafe=object_id)
+        return key.get()
+    
     def get_changelist(self, request, **kwargs):
         """
         Returns the ChangeList class for use on the changelist page.

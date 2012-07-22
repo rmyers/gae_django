@@ -57,7 +57,7 @@ def decorate_ndb_model(model):
     # Add some methods that Django uses
     model.serializable_value = lambda m, attr: getattr(m, attr)
     model._deferred = False
-    model._get_pk_val = lambda m: str(m.key)
+    model._get_pk_val = lambda m: m.key.urlsafe()
     model._get_id = lambda m: m.key.id()
     model.id = property(model._get_id)
     model.pk = property(model._get_pk_val)
