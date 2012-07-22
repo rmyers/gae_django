@@ -116,7 +116,7 @@ except ImportError:
 
 
 from google.appengine.api import users
-from google.appengine.ext import db
+from google.appengine.ext import db, ndb
 
 
 
@@ -237,6 +237,81 @@ class Property(db.Property):
       value = self.data_type(value)
     return value
 
+class NDBProperty(ndb.Property):
+  __metaclass__ = monkey_patch
+
+  def get_form_field(self, form_class=forms.CharField, **kwargs):
+    """Return a Django form field appropriate for this property.
+
+    Args:
+      form_class: a forms.Field subclass, default forms.CharField
+
+    Additional keyword arguments are passed to the form_class constructor,
+    with certain defaults:
+      required: self.required
+      label: prettified self.verbose_name, if not None
+      widget: a forms.Select instance if self.choices is non-empty
+      initial: self.default, if not None
+
+    Returns:
+       A fully configured instance of form_class, or None if no form
+       field should be generated for this property.
+    """
+    defaults = {'required': self._required}
+    if self._verbose_name:
+      defaults['label'] = self._verbose_name.capitalize().replace('_', ' ')
+    if self._choices:
+      choices = []
+      if not self.required or (self._default is None and
+                               'initial' not in kwargs):
+        choices.append(('', '---------'))
+      for choice in self._choices:
+        choices.append((str(choice), unicode(choice)))
+      defaults['widget'] = forms.Select(choices=choices)
+    if self._default is not None:
+      defaults['initial'] = self._default
+    defaults.update(kwargs)
+    return form_class(**defaults)
+
+  def get_value_for_form(self, instance):
+    """Extract the property value from the instance for use in a form.
+
+    Override this to do a property- or field-specific type conversion.
+
+    Args:
+      instance: a db.Model instance
+
+    Returns:
+      The property's value extracted from the instance, possibly
+      converted to a type suitable for a form field; possibly None.
+
+    By default this returns the instance attribute's value unchanged.
+    """
+    return getattr(instance, self._name)
+
+  def make_value_from_form(self, value):
+    """Convert a form value to a property value.
+
+    Override this to do a property- or field-specific type conversion.
+
+    Args:
+      value: the cleaned value retrieved from the form field
+
+    Returns:
+      A value suitable for assignment to a model instance's property;
+      possibly None.
+
+    By default this converts the value to self.data_type if it
+    isn't already an instance of that type, except if the value is
+    empty, in which case we return None.
+    """
+    if value in (None, ''):
+      return None
+    if hasattr(self, '_to_base_type'):
+      value = self._to_base_type(value)
+    elif not isinstance(value, self.data_type):
+      value = self.data_type(value)
+    return value
 
 class UserProperty(db.UserProperty):
   __metaclass__ = monkey_patch
@@ -280,6 +355,48 @@ class StringProperty(db.StringProperty):
     defaults.update(kwargs)
     return super(StringProperty, self).get_form_field(**defaults)
 
+class NDBStringProperty(ndb.StringProperty):
+  __metaclass__ = monkey_patch
+
+  def get_form_field(self, **kwargs):
+    """Return a Django form field appropriate for a string property.
+
+    This sets the widget default to forms.Textarea if the property's
+    multiline attribute is set.
+    """
+    defaults = {}
+    if self._repeated:
+      defaults['widget'] = forms.Textarea
+    defaults.update(kwargs)
+    return super(NDBStringProperty, self).get_form_field(**defaults)
+
+  def get_value_for_form(self, instance):
+    """Extract the property value from the instance for use in a form.
+
+    This joins a list of strings with newlines.
+    """
+    value = super(NDBStringProperty, self).get_value_for_form(instance)
+    if not self._repeated:
+      return value
+    if not value:
+      return None
+    if isinstance(value, list):
+      return '\n'.join(value)
+    return None
+
+  def make_value_from_form(self, value):
+    """Convert a form value to a property value.
+
+    This breaks the string into lines.
+    """
+    value = super(NDBStringProperty, self).make_value_from_form(value)
+    if not self._repeated:
+      return value
+    if not value:
+      return []
+    if isinstance(value, basestring):
+      value = value.splitlines()
+    return value
 
 class TextProperty(db.TextProperty):
   __metaclass__ = monkey_patch
@@ -352,6 +469,21 @@ class DateTimeProperty(db.DateTimeProperty):
     defaults.update(kwargs)
     return super(DateTimeProperty, self).get_form_field(**defaults)
 
+class NDBDateTimeProperty(ndb.DateTimeProperty):
+  __metaclass__ = monkey_patch
+
+  def get_form_field(self, **kwargs):
+    """Return a Django form field appropriate for a date-time property.
+
+    This defaults to a DateTimeField instance, except if auto_now or
+    auto_now_add is set, in which case None is returned, as such
+    'auto' fields should not be rendered as part of the form.
+    """
+    if self._auto_now or self._auto_now_add:
+      return None
+    defaults = {'form_class': forms.DateTimeField}
+    defaults.update(kwargs)
+    return super(NDBDateTimeProperty, self).get_form_field(**defaults)
 
 class DateProperty(db.DateProperty):
   __metaclass__ = monkey_patch
@@ -368,6 +500,22 @@ class DateProperty(db.DateProperty):
     defaults = {'form_class': forms.DateField}
     defaults.update(kwargs)
     return super(DateProperty, self).get_form_field(**defaults)
+
+class NDBDateProperty(ndb.DateProperty):
+  __metaclass__ = monkey_patch
+
+  def get_form_field(self, **kwargs):
+    """Return a Django form field appropriate for a date-time property.
+
+    This defaults to a DateTimeField instance, except if auto_now or
+    auto_now_add is set, in which case None is returned, as such
+    'auto' fields should not be rendered as part of the form.
+    """
+    if self._auto_now or self._auto_now_add:
+      return None
+    defaults = {'form_class': forms.DateTimeField}
+    defaults.update(kwargs)
+    return super(NDBDateProperty, self).get_form_field(**defaults)
 
 class EmailProperty(db.EmailProperty):
     __metaclass__ = monkey_patch
@@ -439,6 +587,31 @@ class BooleanProperty(db.BooleanProperty):
     defaults = {'form_class': forms.BooleanField}
     defaults.update(kwargs)
     return super(BooleanProperty, self).get_form_field(**defaults)
+
+  def make_value_from_form(self, value):
+    """Convert a form value to a property value.
+
+    This is needed to ensure that False is not replaced with None.
+    """
+    if value is None:
+      return None
+    if isinstance(value, basestring) and value.lower() == 'false':
+
+
+      return False
+    return bool(value)
+
+class NDBBooleanProperty(ndb.BooleanProperty):
+  __metaclass__ = monkey_patch
+
+  def get_form_field(self, **kwargs):
+    """Return a Django form field appropriate for a boolean property.
+
+    This defaults to a BooleanField.
+    """
+    defaults = {'form_class': forms.BooleanField}
+    defaults.update(kwargs)
+    return super(NDBBooleanProperty, self).get_form_field(**defaults)
 
   def make_value_from_form(self, value):
     """Convert a form value to a property value.
@@ -684,10 +857,8 @@ def property_clean(prop, value):
   """
   if value is not None:
     try:
-
-
-
-      prop.validate(prop.make_value_from_form(value))
+      validate = getattr(prop, 'validate', getattr(prop, '_validate'))
+      validate(prop.make_value_from_form(value))
     except (db.BadValueError, ValueError), e:
       raise forms.ValidationError(unicode(e))
 
@@ -775,8 +946,13 @@ class ModelFormMetaclass(type):
             '%s defines a different model than its parent.' % class_name)
 
       model_fields = django.utils.datastructures.SortedDict()
-      for name, prop in sorted(opts.model.properties().iteritems(),
-                               key=lambda prop: prop[1].creation_counter):
+      
+      properties = getattr(opts.model, 'properties', getattr(opts.model, '_properties'))
+      if callable(properties):
+          properties = properties()
+      
+      for name, prop in sorted(properties.iteritems(),
+            key=lambda prop: getattr(prop[1], 'creation_counter', getattr(prop[1], '_creation_counter'))):
         if opts.fields and name not in opts.fields:
           continue
         if opts.exclude and name in opts.exclude:
@@ -791,7 +967,7 @@ class ModelFormMetaclass(type):
 
 
 
-      props = opts.model.properties()
+      props = properties
       for name, field in model_fields.iteritems():
         prop = props.get(name)
         if prop:
@@ -851,7 +1027,10 @@ class BaseModelForm(forms.BaseForm):
     self.instance = instance
     object_data = {}
     if instance is not None:
-      for name, prop in instance.properties().iteritems():
+      properties = getattr(opts.model, 'properties', getattr(opts.model, '_properties'))
+      if callable(properties):
+        properties = properties()
+      for name, prop in properties.iteritems():
         if opts.fields and name not in opts.fields:
           continue
         if opts.exclude and name in opts.exclude:
@@ -902,8 +1081,11 @@ class BaseModelForm(forms.BaseForm):
                        'validate.' % (opts.model.kind(), fail_message))
     cleaned_data = self._cleaned_data()
     converted_data = {}
+    properties = getattr(opts.model, 'properties', getattr(opts.model, '_properties'))
+    if callable(properties):
+      properties = properties()
     propiter = itertools.chain(
-      opts.model.properties().iteritems(),
+      properties.iteritems(),
       iter([('key_name', StringProperty(name='key_name'))])
       )
     for name, prop in propiter:
