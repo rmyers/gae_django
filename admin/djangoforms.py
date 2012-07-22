@@ -391,7 +391,7 @@ class NDBStringProperty(ndb.StringProperty):
     """
     value = super(NDBStringProperty, self).make_value_from_form(value)
     if not self._repeated:
-      return value
+      return value or ''
     if not value:
       return []
     if isinstance(value, basestring):
@@ -947,12 +947,17 @@ class ModelFormMetaclass(type):
 
       model_fields = django.utils.datastructures.SortedDict()
       
+      # NDB models provide a dict _properties while DB models have a
+      # properties method.
       properties = getattr(opts.model, 'properties', getattr(opts.model, '_properties'))
+      creation_counter = '_creation_counter'
       if callable(properties):
           properties = properties()
+          # We know that this is a db.Model so we set creation_counter here
+          creation_counter = 'creation_counter'
       
       for name, prop in sorted(properties.iteritems(),
-            key=lambda prop: getattr(prop[1], 'creation_counter', getattr(prop[1], '_creation_counter'))):
+            key=lambda prop: getattr(prop[1], creation_counter)):
         if opts.fields and name not in opts.fields:
           continue
         if opts.exclude and name in opts.exclude:
