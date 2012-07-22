@@ -9,7 +9,9 @@ class User(BaseUser):
     """
     Django style user model from the webapp2_extras user model.
     """
-
+    first_name = ndb.StringProperty()
+    last_name = ndb.StringProperty()
+    
     is_superuser = ndb.BooleanProperty(default=False)
     is_staff = ndb.BooleanProperty(default=False)
     is_active = ndb.BooleanProperty(default=True)
