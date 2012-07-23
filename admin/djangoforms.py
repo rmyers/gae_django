@@ -99,27 +99,51 @@ import django.utils.datastructures
 
 
 
-try:
-  from django import newforms as forms
-  have_uploadedfile = False
-except ImportError:
-  from django import forms
-  from django.core.files import uploadedfile
-  have_uploadedfile = True
+
+from django import forms
+from django.core.files import uploadedfile
+
+from django.contrib.admin import widgets
+from django.utils.translation import ugettext_lazy as _
+
+have_uploadedfile = True
 
 
 
-try:
-  from django.utils.translation import ugettext_lazy as _
-except ImportError:
-  pass
 
-
-from google.appengine.api import users
+from google.appengine.api import users, datastore_types
 from google.appengine.ext import db, ndb
 
 
-
+FORMFIELD_DEFAULTS = {
+    'DateTime': {
+        'form_class': forms.SplitDateTimeField,
+        'widget': widgets.AdminSplitDateTime
+    },                              
+    'Date': {
+        'form_class': forms.DateField,
+        'widget': widgets.AdminDateWidget},
+    'Time': {
+        'form_class': forms.TimeField,
+        'widget': widgets.AdminTimeWidget},
+    'Text': {
+        'form_class': forms.CharField,
+        'widget': widgets.AdminTextareaWidget},
+    'Url': {'widget': widgets.AdminURLFieldWidget},
+    'Int': {
+        'form_class': forms.IntegerField,
+        'widget': widgets.AdminIntegerFieldWidget},
+    'Long': {
+        'form_class': forms.IntegerField,
+        'widget': widgets.AdminIntegerFieldWidget},
+    'Float': {'form_class': forms.FloatField},
+    'String': {},
+        #'form_class': forms.CharField,
+        #'widget': widgets.AdminTextInputWidget},
+    'File': {
+        'form_class': forms.FileField,
+        'widget': widgets.AdminFileWidget},
+}
 
 
 
@@ -309,8 +333,6 @@ class NDBProperty(ndb.Property):
       return None
     if hasattr(self, '_to_base_type'):
       value = self._to_base_type(value)
-    elif not isinstance(value, self.data_type):
-      value = self.data_type(value)
     return value
 
 class UserProperty(db.UserProperty):
@@ -350,53 +372,12 @@ class StringProperty(db.StringProperty):
     multiline attribute is set.
     """
     defaults = {}
+
     if self.multiline:
-      defaults['widget'] = forms.Textarea
+      defaults = FORMFIELD_DEFAULTS.get('String')
     defaults.update(kwargs)
     return super(StringProperty, self).get_form_field(**defaults)
 
-class NDBStringProperty(ndb.StringProperty):
-  __metaclass__ = monkey_patch
-
-  def get_form_field(self, **kwargs):
-    """Return a Django form field appropriate for a string property.
-
-    This sets the widget default to forms.Textarea if the property's
-    multiline attribute is set.
-    """
-    defaults = {}
-    if self._repeated:
-      defaults['widget'] = forms.Textarea
-    defaults.update(kwargs)
-    return super(NDBStringProperty, self).get_form_field(**defaults)
-
-  def get_value_for_form(self, instance):
-    """Extract the property value from the instance for use in a form.
-
-    This joins a list of strings with newlines.
-    """
-    value = super(NDBStringProperty, self).get_value_for_form(instance)
-    if not self._repeated:
-      return value
-    if not value:
-      return None
-    if isinstance(value, list):
-      return '\n'.join(value)
-    return None
-
-  def make_value_from_form(self, value):
-    """Convert a form value to a property value.
-
-    This breaks the string into lines.
-    """
-    value = super(NDBStringProperty, self).make_value_from_form(value)
-    if not self._repeated:
-      return value or ''
-    if not value:
-      return []
-    if isinstance(value, basestring):
-      value = value.splitlines()
-    return value
 
 class TextProperty(db.TextProperty):
   __metaclass__ = monkey_patch
@@ -406,10 +387,21 @@ class TextProperty(db.TextProperty):
 
     This sets the widget default to forms.Textarea.
     """
-    defaults = {'widget': forms.Textarea}
+    defaults = FORMFIELD_DEFAULTS.get('Text')
     defaults.update(kwargs)
     return super(TextProperty, self).get_form_field(**defaults)
 
+#class NDBTextProperty(ndb.TextProperty):
+#  __metaclass__ = monkey_patch
+#
+#  def get_form_field(self, **kwargs):
+#    """Return a Django form field appropriate for a text property.
+#
+#    This sets the widget default to forms.Textarea.
+#    """
+#    defaults = FORMFIELD_DEFAULTS.get('Text')
+#    defaults.update(kwargs)
+#    return super(NDBTextProperty, self).get_form_field(**defaults)
 
 class BlobProperty(db.BlobProperty):
   __metaclass__ = monkey_patch
@@ -425,9 +417,7 @@ class BlobProperty(db.BlobProperty):
     or later.  For 0.96 this returns None, as file uploads are not
     really supported in that version.
     """
-    if not hasattr(forms, 'FileField'):
-      return None
-    defaults = {'form_class': forms.FileField}
+    defaults = FORMFIELD_DEFAULTS.get('File')
     defaults.update(kwargs)
     return super(BlobProperty, self).get_form_field(**defaults)
 
@@ -445,13 +435,83 @@ class BlobProperty(db.BlobProperty):
     This extracts the content from the UploadedFile instance returned
     by the FileField instance.
     """
-    if have_uploadedfile and isinstance(value, uploadedfile.UploadedFile):
+    if isinstance(value, uploadedfile.UploadedFile):
       if not self.form_value:
         self.form_value = value.read()
       b = db.Blob(self.form_value)
       return b
     return super(BlobProperty, self).make_value_from_form(value)
 
+class NDBBlobProperty(ndb.BlobProperty):
+  #NDB BlobProperty
+  #
+  #This is the base class to many other properties, so we
+  #need to handle them all here, StringProperty, TextProperty
+  #JsonProperty, PickleProperty, and BlobProperty.
+  __metaclass__ = monkey_patch
+
+  def __init__(self, *args, **kwargs):
+    super(NDBBlobProperty, self).__init__(*args, **kwargs)
+    self.form_value = None
+
+  def get_form_field(self, **kwargs):
+    """Return the correct form field for this property.
+    
+    NDB makes this interesting, as many things are subclasses
+    of BlobProperty. So we need to special case them
+    """
+    if isinstance(self, ndb.StringProperty):
+      defaults = FORMFIELD_DEFAULTS.get('String')
+      if self._repeated:
+        defaults = FORMFIELD_DEFAULTS.get('Text')
+    elif isinstance(self, ndb.TextProperty):
+      defaults = FORMFIELD_DEFAULTS.get('Text')
+    else:
+      defaults = FORMFIELD_DEFAULTS.get('File')
+    defaults.update(kwargs)
+    return super(NDBBlobProperty, self).get_form_field(**defaults)
+
+  def get_value_for_form(self, instance):
+    """Extract the property value from the instance for use in a form.
+
+    There is no way to convert a Blob into an initial value for a file
+    upload, so we always return None.
+    """
+    value = super(NDBBlobProperty, self).get_value_for_form(instance)
+    if isinstance(self, ndb.StringProperty):
+      if not self._repeated:
+        return value
+      if not value:
+        return None
+      if isinstance(value, list):
+        return '\n'.join(value)
+      return None
+    elif isinstance(self, ndb.TextProperty):
+      return value
+    else:
+      return None
+
+  def make_value_from_form(self, value):
+    """Convert a form value to a property value.
+
+    This extracts the content from the UploadedFile instance returned
+    by the FileField instance.
+    """
+    if isinstance(self, ndb.StringProperty):
+      if not self._repeated:
+        value = value or ''
+      else:
+        if isinstance(value, list):
+          return value.splitlines()
+    elif isinstance(self, ndb.TextProperty):
+      value = value
+    else:
+      if isinstance(value, uploadedfile.UploadedFile):
+        if not self.form_value:
+          self.form_value = value.read()
+        b = datastore_types.Blob(self.form_value)
+        return b
+    return super(NDBBlobProperty, self).make_value_from_form(value)
 
 class DateTimeProperty(db.DateTimeProperty):
   __metaclass__ = monkey_patch
@@ -465,7 +525,7 @@ class DateTimeProperty(db.DateTimeProperty):
     """
     if self.auto_now or self.auto_now_add:
       return None
-    defaults = {'form_class': forms.DateTimeField}
+    defaults = FORMFIELD_DEFAULTS.get('DateTime')
     defaults.update(kwargs)
     return super(DateTimeProperty, self).get_form_field(**defaults)
 
@@ -481,9 +541,14 @@ class NDBDateTimeProperty(ndb.DateTimeProperty):
     """
     if self._auto_now or self._auto_now_add:
       return None
-    defaults = {'form_class': forms.DateTimeField}
+    defaults = FORMFIELD_DEFAULTS.get('DateTime')
     defaults.update(kwargs)
     return super(NDBDateTimeProperty, self).get_form_field(**defaults)
+
+  def make_value_from_form(self, value):
+    if value in (None, ''):
+      return None
+    return value
 
 class DateProperty(db.DateProperty):
   __metaclass__ = monkey_patch
@@ -497,7 +562,7 @@ class DateProperty(db.DateProperty):
     """
     if self.auto_now or self.auto_now_add:
       return None
-    defaults = {'form_class': forms.DateField}
+    defaults = FORMFIELD_DEFAULTS.get('Date')
     defaults.update(kwargs)
     return super(DateProperty, self).get_form_field(**defaults)
 
@@ -513,7 +578,7 @@ class NDBDateProperty(ndb.DateProperty):
     """
     if self._auto_now or self._auto_now_add:
       return None
-    defaults = {'form_class': forms.DateTimeField}
+    defaults = FORMFIELD_DEFAULTS.get('Date')
     defaults.update(kwargs)
     return super(NDBDateProperty, self).get_form_field(**defaults)
 
@@ -525,10 +590,11 @@ class EmailProperty(db.EmailProperty):
         
         This defaults to a URLField instance.
         """
-        defaults = {'form_class': forms.EmailField}
+        defaults = FORMFIELD_DEFAULTS.get('Email')
         defaults.update(kwargs)
         return super(EmailProperty, self).get_form_field(**defaults)
 
+# No NDB email property :( not sure why not Guido??
 
 class TimeProperty(db.TimeProperty):
   __metaclass__ = monkey_patch
@@ -542,10 +608,25 @@ class TimeProperty(db.TimeProperty):
     """
     if self.auto_now or self.auto_now_add:
       return None
-    defaults = {'form_class': forms.TimeField}
+    defaults = FORMFIELD_DEFAULTS.get('Time')
     defaults.update(kwargs)
     return super(TimeProperty, self).get_form_field(**defaults)
 
+class NDBTimeProperty(ndb.TimeProperty):
+  __metaclass__ = monkey_patch
+
+  def get_form_field(self, **kwargs):
+    """Return a Django form field appropriate for a time property.
+
+    This defaults to a TimeField instance, except if auto_now or
+    auto_now_add is set, in which case None is returned, as such
+    'auto' fields should not be rendered as part of the form.
+    """
+    if self._auto_now or self._auto_now_add:
+      return None
+    defaults = FORMFIELD_DEFAULTS.get('Time')
+    defaults.update(kwargs)
+    return super(NDBTimeProperty, self).get_form_field(**defaults)
 
 class IntegerProperty(db.IntegerProperty):
   __metaclass__ = monkey_patch
@@ -555,26 +636,53 @@ class IntegerProperty(db.IntegerProperty):
 
     This defaults to an IntegerField instance.
     """
-    defaults = {'form_class': forms.IntegerField}
+    defaults = FORMFIELD_DEFAULTS.get('Long')
     defaults.update(kwargs)
     return super(IntegerProperty, self).get_form_field(**defaults)
 
+class NDBIntegerProperty(ndb.IntegerProperty):
+  __metaclass__ = monkey_patch
+
+  def get_form_field(self, **kwargs):
+    """Return a Django form field appropriate for an integer property.
+
+    This defaults to an IntegerField instance.
+    """
+    defaults = FORMFIELD_DEFAULTS.get('Long')
+    defaults.update(kwargs)
+    return super(NDBIntegerProperty, self).get_form_field(**defaults)
+
+  def makec_value_from_form(self, value):
+    """Convert the input into an Integer
+    """
+    if value in (None, ''):
+      return None
+    if not isinstance(value, (int, long)):
+      try:
+        value = long(value)
+      except ValueError:
+        raise forms.ValidationError(_('Please enter an Integer'))
+    return value
 
 class FloatProperty(db.FloatProperty):
   __metaclass__ = monkey_patch
 
   def get_form_field(self, **kwargs):
     """Return a Django form field appropriate for an integer property.
-
-    This defaults to a FloatField instance when using Django 0.97 or
-    later.  For 0.96 this defaults to the CharField class.
     """
-    defaults = {}
-    if hasattr(forms, 'FloatField'):
-      defaults['form_class'] = forms.FloatField
+    defaults = FORMFIELD_DEFAULTS.get('Float')
     defaults.update(kwargs)
     return super(FloatProperty, self).get_form_field(**defaults)
 
+class NDBFloatProperty(ndb.FloatProperty):
+  __metaclass__ = monkey_patch
+
+  def get_form_field(self, **kwargs):
+    """Return a Django form field appropriate for an integer property.
+    """
+    defaults = FORMFIELD_DEFAULTS.get('Float')
+    defaults.update(kwargs)
+    return super(NDBFloatProperty, self).get_form_field(**defaults)
 
 class BooleanProperty(db.BooleanProperty):
   __metaclass__ = monkey_patch
@@ -639,8 +747,7 @@ class StringListProperty(db.StringListProperty):
 
     This defaults to a Textarea widget with a blank initial value.
     """
-    defaults = {'widget': forms.Textarea,
-                'initial': ''}
+    defaults = FORMFIELD_DEFAULTS.get('Text')
     defaults.update(kwargs)
     return super(StringListProperty, self).get_form_field(**defaults)
 
@@ -676,7 +783,7 @@ class LinkProperty(db.LinkProperty):
 
     This defaults to a URLField instance.
     """
-    defaults = {'form_class': forms.URLField}
+    defaults = FORMFIELD_DEFAULTS.get('Url')
     defaults.update(kwargs)
     return super(LinkProperty, self).get_form_field(**defaults)
 
