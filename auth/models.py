@@ -21,7 +21,7 @@ class User(BaseUser):
     location_slug = ndb.ComputedProperty(lambda self: slugify(self.location))
 
     def __str__(self):
-        return self.__unicode__()
+        return self.__unicode__() or 'User'
         
     def __unicode__(self):
         if self.first_name and self.last_name:
