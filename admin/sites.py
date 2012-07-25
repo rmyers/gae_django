@@ -44,7 +44,6 @@ class GAEAdminSite(AdminSite):
         for model in model_or_iterable:
             
             if admin_class is None:
-                logging.error(type(model))
                 if isinstance(model, (ndb.model.MetaModel)):
                     admin_class = NDBModelAdmin
                 else:

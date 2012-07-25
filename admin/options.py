@@ -215,7 +215,6 @@ class ModelAdmin(DjangoModelAdmin):
 class NDBModelAdmin(ModelAdmin):
     
     def __init__(self, model, admin_site):
-        logging.error('NDBMODEL')
         # add meta class and various attributes/methods for django
         model = decorate_ndb_model(model)
         super(ModelAdmin, self).__init__(model, admin_site)

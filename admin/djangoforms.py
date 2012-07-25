@@ -499,19 +499,22 @@ class NDBBlobProperty(ndb.BlobProperty):
     """
     if isinstance(self, ndb.StringProperty):
       if not self._repeated:
-        value = value or ''
-      else:
-        if isinstance(value, list):
-          return value.splitlines()
+        return value
+      if not value:
+        return []
+      if isinstance(value, basestring):
+        logging.error("In repeated string")
+        value = value.splitlines()
+      return value
     elif isinstance(self, ndb.TextProperty):
-      value = value
+      return value
     else:
       if isinstance(value, uploadedfile.UploadedFile):
         if not self.form_value:
           self.form_value = value.read()
         b = datastore_types.Blob(self.form_value)
         return b
-    return super(NDBBlobProperty, self).make_value_from_form(value)
+      return super(NDBBlobProperty, self).make_value_from_form(value)
 
 class DateTimeProperty(db.DateTimeProperty):
   __metaclass__ = monkey_patch
@@ -967,7 +970,13 @@ def property_clean(prop, value):
       if hasattr(prop, 'validate'):
         prop.validate(prop.make_value_from_form(value))
       elif hasattr(prop, '_validate'):
-        prop._validate(prop.make_value_from_form(value))
+        if prop._repeated:
+          value = prop.make_value_from_form(value)
+          if not isinstance(value, list):
+            raise AttributeError(_("Expected a list and got: %r" % value))
+          [prop._validate(v) for v in value]
+        else:
+          prop._validate(prop.make_value_from_form(value))
     except (db.BadValueError, ValueError), e:
       raise forms.ValidationError(unicode(e))
 
@@ -1218,8 +1227,12 @@ class BaseModelForm(forms.BaseForm):
             continue
           setattr(instance, name, value)
     except db.BadValueError, err:
+      try:
+          kind = opts.model.__class__
+      except AttributeError:
+          kind = opts.model.kind()
       raise ValueError('The %s could not be %s (%s)' %
-                       (opts.model.kind(), fail_message, err))
+                       (kind, fail_message, err))
     if commit:
 
 
