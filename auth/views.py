@@ -41,6 +41,7 @@ def register(request, template_name='registration/register.html',
             email = form.cleaned_data.pop('email')
             username = form.cleaned_data.pop('username')
             password = form.cleaned_data.pop('password')
+            del form.cleaned_data['confirm_password']
 
             auth_id = 'email:%s' % email
             created, user = User.create_user(auth_id, **form.cleaned_data)
