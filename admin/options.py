@@ -21,6 +21,7 @@ class ModelAdmin(DjangoModelAdmin):
     """Default class for instances of google.appengine.ext.db.Model"""
     
     form = None
+    change_form_template = 'admin/gae_change_form.html'
     
     def __init__(self, model, admin_site):
         # add meta class and various attributes/methods for django
@@ -97,10 +98,13 @@ class ModelAdmin(DjangoModelAdmin):
         return []
 
     def render_change_form(self, request, context, add=False, change=False, form_url='', obj=None):
-        # Need to override this because of content types lookup
+        # Need to override this because of content types lookup and absolute_url crap
         opts = self.model._meta
         app_label = opts.app_label
         ordered_objects = opts.get_ordered_objects()
+        absurl = None
+        if obj and hasattr(self.model, 'get_absolute_url'):
+            absurl = obj.get_absolute_url()
         context.update({
             'add': add,
             'change': change,
@@ -108,7 +112,7 @@ class ModelAdmin(DjangoModelAdmin):
             'has_change_permission': self.has_change_permission(request, obj),
             'has_delete_permission': self.has_delete_permission(request, obj),
             'has_file_field': True, # FIXME - this should check if form or formsets have a FileField,
-            'has_absolute_url': hasattr(self.model, 'get_absolute_url'),
+            'has_absolute_url': absurl,
             'ordered_objects': ordered_objects,
             'form_url': mark_safe(form_url),
             'opts': opts,

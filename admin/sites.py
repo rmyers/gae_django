@@ -76,7 +76,7 @@ class GAEAdminSite(AdminSite):
             if model not in self._registry:
                 raise AttributeError('The model %s is not registered' % model.__name__)
             del self._registry[model]
-
+    
     def login(self, request):
         return redirect(settings.LOGIN_URL)
 
