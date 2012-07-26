@@ -45,7 +45,9 @@ class FilterSpec(object):
         raise NotImplementedError()
 
     def title(self):
-        return self.field.verbose_name
+        if hasattr(self.field, 'name'):
+            return self.field.name
+        return self.field._name
 
     def output(self, cl):
         t = []
@@ -71,10 +73,7 @@ class BooleanFieldFilterSpec(FilterSpec):
         self.lookup_val = request.GET.get(self.lookup_kwarg, None)
         self.lookup_val2 = request.GET.get(self.lookup_kwarg2, None)
 
-    def title(self):
-        if hasattr(self.field, 'verbose_name'):
-            return self.field.verbose_name
-        return self.field._verbose_name
+    
 
     def choices(self, cl):
         for k, v in ((_('All'), None), (_('Yes'), '1'), (_('No'), '0')):
@@ -148,8 +147,6 @@ class DateFieldFilterSpec(FilterSpec):
             (_('This year'), {'%s__year' % self.field_path: str(today.year)})
         )
 
-    def title(self):
-        return self.field.verbose_name
 
     def choices(self, cl):
         for title, param_dict in self.links:

@@ -4,6 +4,7 @@ from django.contrib.admin.views.main import ChangeList, ALL_VAR, ORDER_VAR,\
 from filterspecs import FilterSpec
 from paginator import Paginator
 import logging
+from google.appengine.ext import ndb
 
 class GAEChangeList(ChangeList):
     
@@ -70,6 +71,9 @@ class GAEChangeList(ChangeList):
             qs.filter(new_filter, value)
             qs._filtered = True
         
+        if self.search_fields and self.query:
+            logging.error(self.query)
+        
         return qs
     
     def url_for_result(self, result):
@@ -121,11 +125,23 @@ class NDBChangeList(GAEChangeList):
             _field, lookup = key.split('__')
             field = getattr(self.model, _field)
             if lookup == 'bool':
-                logging.info('Filter by boolean')
-                qs.filter(field == bool(int(value)))
+                qs = qs.filter(field == bool(int(value)))
             elif lookup in ['iexact', 'exact']:
-                qs.filter(field == value)
+                qs = qs.filter(field == value)
             # TODO: more
             qs._filtered = True
+        
+        if self.search_fields and self.query:
+            if len(self.search_fields) == 1:
+                # simple case just do a filter
+                field = getattr(self.model, self.search_fields[0])
+                qs = qs.filter(field == self.query)
+                qs._filtered = True
+            else:
+                fields = [getattr(self.model, f) for f in self.search_fields]
+                queries = [ndb.AND(field == self.query) for field in fields]
+                qs = qs.filter(ndb.OR(*queries))
+                qs._filtered = True
+                    
         
         return qs
