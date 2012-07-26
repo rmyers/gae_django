@@ -74,8 +74,8 @@ class GAEChangeList(ChangeList):
         if self.search_fields and self.query:
             logging.error(self.query)
         
-        if self.order_field:
-            qs.order('%s%s' % ((self.order_type == 'desc' and '-' or ''), self.order_field))
+        #if self.order_field:
+            #qs.order('%s%s' % ((self.order_type == 'desc' and '-' or ''), self.order_field))
         
         return qs
     
@@ -149,11 +149,12 @@ class NDBChangeList(GAEChangeList):
                     
         if self.order_field:
             filtered = qs._filtered
-            field = getattr(self.model, self.order_field)
-            if self.order_type == 'desc':
-                qs = qs.order(-field)
-            else:
-                qs = qs.order(field)
-            qs._filtered = filtered
+            field = getattr(self.model, self.order_field, None)
+            if field:
+                if self.order_type == 'desc':
+                    qs = qs.order(-field)
+                else:
+                    qs = qs.order(field)
+                qs._filtered = filtered
         
         return qs
