@@ -5,6 +5,7 @@ This mainly provides support for transactions.
 """
 import logging
 
+from django import VERSION
 from django.db.backends import *
 from django.db.backends.creation import BaseDatabaseCreation
 
@@ -44,7 +45,11 @@ class DatabaseWrapper(BaseDatabaseWrapper):
         super(DatabaseWrapper, self).__init__(*args, **kwargs)
 
         self.features = BaseDatabaseFeatures(self)
-        self.ops = DatabaseOperations()
+        if VERSION[1] >= 4:
+            # Django 1.4 and greater
+            self.ops = DatabaseOperations(self)
+        else:
+            self.ops = DatabaseOperations()
         self.client = DatabaseClient(self)
         self.creation = BaseDatabaseCreation(self)
         self.introspection = DatabaseIntrospection(self)

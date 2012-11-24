@@ -42,7 +42,7 @@ class GAEChangeList(ChangeList):
         self.paginator = paginator
 
     
-    def get_query_set(self):
+    def get_query_set(self, request=None):
         qs = self.root_query_set
         qs._filtered = False
         # Switch django filter strings into appengine ones 
@@ -74,6 +74,10 @@ class GAEChangeList(ChangeList):
         if self.search_fields and self.query:
             logging.error(self.query)
         
+        if not hasattr(self, 'order_field'):
+            order = self._get_default_ordering()
+            if order:
+                self.order_field = order[0]
         #if self.order_field:
             #qs.order('%s%s' % ((self.order_type == 'desc' and '-' or ''), self.order_field))
         
@@ -111,7 +115,7 @@ class NDBChangeList(GAEChangeList):
     def url_for_result(self, result):
         return "%s/" % result.key.urlsafe()
     
-    def get_query_set(self):
+    def get_query_set(self, request=None):
         qs = self.root_query_set
         qs._filtered = False
         lookup_params = self.params.copy() # a dictionary of the query string
@@ -146,6 +150,11 @@ class NDBChangeList(GAEChangeList):
                 queries = [ndb.AND(field == self.query) for field in fields]
                 qs = qs.filter(ndb.OR(*queries))
                 qs._filtered = True
+        
+        if not hasattr(self, 'order_field'):
+            order = self._get_default_ordering()
+            if order:
+                self.order_field = order[0]
                     
         if self.order_field:
             filtered = qs._filtered

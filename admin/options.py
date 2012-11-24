@@ -120,7 +120,7 @@ class ModelAdmin(DjangoModelAdmin):
             'content_type_id': opts.object_name.lower(),
             'save_as': self.save_as,
             'save_on_top': self.save_on_top,
-            'root_path': self.admin_site.root_path,
+            'root_path': getattr(self.admin_site, 'root_path', '/'),
         })
         if add and self.add_form_template is not None:
             form_template = self.add_form_template
