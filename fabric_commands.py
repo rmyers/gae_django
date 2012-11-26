@@ -146,3 +146,27 @@ def local_shell(appid=None, server=None):
     
     remote_api_shell.remote_api_shell(server, application, 
         remote_api_shell.DEFAULT_PATH, False, appengine_rpc.HttpRpcServer)
+
+@task
+def runserver(use_sqlite='True', port=8080, clear_datastore=False):
+    """
+    Run the development server.
+    
+    Helper command to run dev_appserver::
+    
+        $ fab runserver
+        
+        Clear the datastore
+        $ fab runserver:clear_datastore=1
+        
+        Use a different port.
+        $ fab runserver:port=8089
+    """
+    cmd = 'dev_appserver.py -p %s ' % port
+    if use_sqlite.lower() not in ['0', 'false', 'f']:
+        cmd += '--use_sqlite '
+    if clear_datastore:
+        cmd += '-c '
+    cmd += '.'
+    local(cmd)
+    
