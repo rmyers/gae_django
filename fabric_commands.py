@@ -30,7 +30,7 @@ def setup_paths():
       os.getcwd(),
       DIR_PATH,
       os.path.join(DIR_PATH, 'lib', 'antlr3'),
-      os.path.join(DIR_PATH, 'lib', 'django_1_3'),
+      os.path.join(DIR_PATH, 'lib', 'django_1_4'),
       os.path.join(DIR_PATH, 'lib', 'fancy_urllib'),
       os.path.join(DIR_PATH, 'lib', 'ipaddr'),
       os.path.join(DIR_PATH, 'lib', 'jinja2'),
